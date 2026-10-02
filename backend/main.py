@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import os
 
-from database import engine, get_db, Base
+from database import engine, get_db, Base, SessionLocal
 from models import User, Document, DocumentHistory
 from security import hash_password, verify_password, create_access_token, decode_token
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -70,15 +71,12 @@ def require_admin(user: User = Depends(get_current_user)):
 
 
 def seed_users():
-    db = next(get_db())
+    db = SessionLocal()
     try:
-        if db.query(User).count() == 0:
-            for uname, pwd, name, role in [
-                ("admin", "admin123", "المدير", "admin"),
-                ("user", "user123", "موظف", "user"),
-            ]:
-                h, s = hash_password(pwd)
-                db.add(User(username=uname, password_hash=h, password_salt=s, full_name=name, role=role))
+        password = os.getenv("INITIAL_ADMIN_PASSWORD", "")
+        if db.query(User).count() == 0 and password:
+            h, s = hash_password(password)
+            db.add(User(username=os.getenv("INITIAL_ADMIN_USERNAME", "admin"), password_hash=h, password_salt=s, full_name="المدير", role="admin"))
             db.commit()
     finally:
         db.close()
@@ -105,11 +103,11 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/register")
-def register(req: RegisterRequest, db: Session = Depends(get_db)):
+def register(req: RegisterRequest, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     if db.query(User).filter(User.username == req.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     h, s = hash_password(req.password)
-    user = User(username=req.username, password_hash=h, password_salt=s, full_name=req.full_name, role=req.role)
+    user = User(username=req.username, password_hash=h, password_salt=s, full_name=req.full_name, role=req.role if req.role in {"admin", "user"} else "user")
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -20,16 +20,20 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+export INITIAL_ADMIN_USERNAME=admin
+export INITIAL_ADMIN_PASSWORD="choose-a-private-strong-password"
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 الخادم سيعمل على: http://localhost:8000
 
-### حسابات تجريبية
-| المستخدم | كلمة المرور | الدور |
-|----------|-------------|-------|
-| admin | admin123 | مدير |
-| user | user123 | موظف |
+### إعداد الدخول
+
+يحفظ المستخدم `SECRET_KEY` نفسه عبر إعادة التشغيل. في PowerShell استخدم
+`$env:SECRET_KEY = python -c "import secrets; print(secrets.token_hex(32))"`.
+اضبط `INITIAL_ADMIN_PASSWORD` قويًا لتهيئة المدير الأول لقاعدة بيانات فارغة.
+لا ينشئ التطبيق حسابات بكلمات مرور منشورة. التسجيل يتطلب رمز مدير صالحًا.
 
 ## تشغيل الواجهة (Frontend)
 
@@ -45,7 +49,7 @@ npm run dev
 
 ### المصادقة
 - `POST /auth/login` - تسجيل الدخول
-- `POST /auth/register` - تسجيل مستخدم جديد
+- `POST /auth/register` - تسجيل مستخدم جديد بواسطة المدير
 
 ### المراسلات
 - `GET /documents/` - قائمة المراسلات
